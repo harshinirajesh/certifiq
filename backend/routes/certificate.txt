@@ -1,0 +1,102 @@
+const express = require("express");
+const router = express.Router();
+const fs = require("fs");
+const path = require("path");
+const { createCanvas, loadImage } = require("canvas");
+const multer = require("multer");
+const xlsx = require("xlsx");   // 👈 using xlsx
+const archiver = require("archiver");
+
+const upload = multer({ dest: "uploads/" });
+
+// ----------------- Single certificate -----------------
+router.post("/generate", async (req, res) => { 
+  const { name } = req.body;
+
+  try {
+    // Load certificate template
+    const template = await loadImage(path.join(__dirname, "../assets/template.png"));
+
+
+    const canvas = createCanvas(template.width, template.height);
+    const ctx = canvas.getContext("2d");
+
+    // Draw background
+    ctx.drawImage(template, 0, 0);
+
+    // Add name dynamically
+    ctx.font = "bold 48px Arial";
+    ctx.fillStyle = "black";
+    ctx.fillText(name, 300, 300); // Adjust coordinates
+
+    // Save
+    const filePath = path.join(__dirname, `${name}_certificate.png`);
+    const buffer = canvas.toBuffer("image/png");
+    fs.writeFileSync(filePath, buffer);
+
+    res.download(filePath);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error generating certificate");
+  }
+});
+
+// ----------------- Bulk certificates from XLSX -----------------
+router.post("/bulk-generate", upload.single("file"), async (req, res) => {
+  try {
+    // Ensure uploaded file is .xlsx
+    if (!req.file.originalname.endsWith(".xlsx")) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).send("Only .xlsx files are supported");
+    }
+
+    // Read Excel file
+    const workbook = xlsx.readFile(req.file.path);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const results = xlsx.utils.sheet_to_json(sheet);
+
+    console.log("Excel Rows:", results); // debug
+
+    res.setHeader("Content-Disposition", "attachment; filename=certificates.zip");
+    res.setHeader("Content-Type", "application/zip");
+
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.pipe(res);
+
+    const template = await loadImage(path.join(__dirname, "template.png"));
+
+    for (let participant of results) {
+      console.log("Processing participant:", participant);
+
+      // Accept header case-insensitively
+      const name = participant.name?.trim() || participant.Name?.trim();
+      if (!name) {
+        console.warn("Skipping row (no name field):", participant);
+        continue;
+      }
+
+      const canvas = createCanvas(template.width, template.height);
+      const ctx = canvas.getContext("2d");
+
+      ctx.drawImage(template, 0, 0);
+      ctx.font = "bold 48px Arial";
+      ctx.fillStyle = "black";
+      ctx.fillText(name, 300, 300);
+
+      const buffer = canvas.toBuffer("image/png");
+      archive.append(buffer, { name: `${name}_certificate.png` });
+    }
+
+    await archive.finalize();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error generating certificates");
+  } finally {
+    // cleanup
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+  }
+});
+
+module.exports = router;
