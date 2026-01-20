@@ -1,6 +1,6 @@
 # **CertifiQ**
 
-**CertifiQ** is a backend application built with **Node.js** and **Express** for managing and generating certificates. It provides APIs for certificate operations and supports reusable certificate templates.
+**CertifiQ** is a backend application built with **Node.js** and **Express.js** for managing and generating certificates. It provides APIs for certificate operations and supports reusable certificate templates.
 
 ---
 
@@ -105,6 +105,7 @@ You can test the APIs using tools like **Postman**, **Thunder Client**, or any H
 <img width="596" height="424" alt="image" src="https://github.com/user-attachments/assets/c471d8c3-0a4d-476e-ab29-d32c8d134276" />
 
 <img width="595" height="421" alt="image" src="https://github.com/user-attachments/assets/6be0e8c0-aaa9-4268-a824-4d5cc96b2c14" />
+
 
 
 
